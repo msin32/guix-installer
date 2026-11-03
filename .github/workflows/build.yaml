@@ -128,33 +128,38 @@ jobs:
           # Debugging
           cat ./guix/channels.scm
           # Build the image
-          image=$(guix time-machine -C ./guix/channels.scm -- system image -t iso9660 ./guix/installer.scm)
+          # Retry several times (https://issues.guix.gnu.org/53594)
+          image=""
+          max_attempts=5
+          for attempt in $(seq 1 $max_attempts); do
+            if image=$(guix time-machine -C ./guix/channels.scm -- system image -t iso9660 ./guix/installer.scm); then
+              break
+            fi
+            image=""
+            echo "::warning::guix system image failed (attempt $attempt of $max_attempts)"
+            sleep 10
+          done
+          if test -z "$image"; then
+            echo "::error::guix system image failed after $max_attempts attempts"
+            exit 1
+          fi
 
           # Copy the image to the local folder with a better name
           export RELEASE_TAG=$(date +"%Y%m%d%H%M")
           echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
           cp $image ./guix-installer-$RELEASE_TAG.iso
-          # Compress image in tar achirve
+          # Compress image in tar archive
           tar czvf guix-installer-$RELEASE_TAG.tar.gz ./guix-installer-$RELEASE_TAG.iso
           # Github limits single files to 2GiB in releases.
           IMAGE_SIZE=$(stat -c %s ./guix-installer-$RELEASE_TAG.tar.gz)
           mkdir -p to-release
           if test "$IMAGE_SIZE" -ge "2000000000"; then 
-            split -b 2GiB ./guix-installer-$RELEASE_TAG.tar.gz "guix-installer-$RELEASE_TAG.tar.gz-part-"
+            split -b 1900M ./guix-installer-$RELEASE_TAG.tar.gz "guix-installer-$RELEASE_TAG.tar.gz-part-"
             mv guix-installer-$RELEASE_TAG.tar.gz-part-* to-release/
           else
             mv ./guix-installer-$RELEASE_TAG.tar.gz to-release/
           fi
-      - name: Print failing Nonguix derivation log
-        if: failure()
-        shell: bash
-        run: |
-          sudo find /var/log/guix/drvs \
-            -type f \
-            -name '*-nonguix.drv.gz' \
-            -print \
-            -exec gzip -cd {} \;
-      - uses: actions/cache/save@v3
+      - uses: actions/cache/save@v4
         if: always()
         with:
           path: ~/.cache/guix
@@ -162,11 +167,13 @@ jobs:
       - name: Prepare Release Notes
         run: |
           cat > release-notes.md <<'NOTES'
-          This installer image is compressed with zstd. Decompress it before writing to USB:
+          This installer image is split, join and extract:
 
           ```
-          zstd -d guix-installer-*.iso.zst
+          cat guix-installer-*.tar.gz-part-* > guix-installer.tar.gz
+          tar xzf guix-installer*.tar.gz
           ```
+          
 
           This installer image was prepared with the following channel configuration:
 
@@ -185,4 +192,4 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: SystemCrafters/guix-installer
+          GITHUB_REPOSITORY: msin32/guix-installer
