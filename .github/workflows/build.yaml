@@ -125,7 +125,8 @@ jobs:
           guix install nss-certs
           # Write out the channels file so it can be included
           guix time-machine -C ./guix/base-channels.scm -- describe -f channels > ./guix/channels.scm
-
+          # Debugging
+          cat ./guix/channels.scm
           # Build the image
           image=$(guix time-machine -C ./guix/channels.scm -- system image -t iso9660 ./guix/installer.scm)
 
