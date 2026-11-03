@@ -4,7 +4,7 @@
  (lambda (chan)
    (if (eq? (channel-name chan) 'guix)
        (channel (inherit chan)
-                (branch "version-1.5.0"))
+                (branch "kernel-updates"))
        chan))
         (cons* (channel
                 (name 'nonguix)
