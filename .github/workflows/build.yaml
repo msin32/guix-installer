@@ -125,7 +125,8 @@ jobs:
           guix install nss-certs
           # Write out the channels file so it can be included
           guix time-machine -C ./guix/base-channels.scm -- describe -f channels > ./guix/channels.scm
-
+          # Debugging
+          cat ./guix/channels.scm
           # Build the image
           # Retry several times (https://issues.guix.gnu.org/53594)
           image=""
@@ -163,7 +164,6 @@ jobs:
         with:
           path: ~/.cache/guix
           key: guix-cache-${{ github.sha }}
-
       - name: Prepare Release Notes
         run: |
           cat > release-notes.md <<'NOTES'
