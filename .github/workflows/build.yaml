@@ -144,12 +144,20 @@ jobs:
           else
             mv ./guix-installer-$RELEASE_TAG.tar.gz to-release/
           fi
+      - name: Print failing Nonguix derivation log
+        if: failure()
+        shell: bash
+        run: |
+          sudo find /var/log/guix/drvs \
+            -type f \
+            -name '*-nonguix.drv.gz' \
+            -print \
+            -exec gzip -cd {} \;
       - uses: actions/cache/save@v3
         if: always()
         with:
           path: ~/.cache/guix
           key: guix-cache-${{ github.sha }}
-
       - name: Prepare Release Notes
         run: |
           cat > release-notes.md <<'NOTES'
